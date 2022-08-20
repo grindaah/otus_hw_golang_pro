@@ -13,10 +13,18 @@ func Unpack(s string) (string, error) {
 	var result strings.Builder
 	var cursorAlhpa rune
 	var escapedNext bool
-	unpack := func(sym rune, i int) {
+	unpack := func(i int) {
 		result.WriteString(strings.Repeat(string(cursorAlhpa), i))
 		cursorAlhpa = 0
 		escapedNext = false
+	}
+	escapeNext := func(sym rune) {
+		if !escapedNext {
+			escapedNext = true
+		} else {
+			cursorAlhpa = sym
+			escapedNext = false
+		}
 	}
 	for _, r := range s {
 		if unicode.IsControl(r) {
@@ -26,29 +34,19 @@ func Unpack(s string) (string, error) {
 			// check for backslash
 			if r == 0x5C {
 				if cursorAlhpa != 0 {
-					unpack(cursorAlhpa, 1)
+					unpack(1)
 				}
-				if !escapedNext {
-					escapedNext = true
-				} else {
-					cursorAlhpa = r
-					escapedNext = false
-				}
-
-				continue
+				escapeNext(r)
 			} else {
 				if cursorAlhpa != 0 {
-					unpack(cursorAlhpa, 1)
+					unpack(1)
 				}
 				cursorAlhpa = r
 			}
 		} else {
-			//is digit
 			if escapedNext {
 				cursorAlhpa = r
 				escapedNext = false
-				continue
-				//
 			} else {
 				if cursorAlhpa == 0 {
 					return "", ErrInvalidString
@@ -57,17 +55,16 @@ func Unpack(s string) (string, error) {
 				if err != nil {
 					return "", err
 				}
-				unpack(cursorAlhpa, digit)
-			}
-			if escapedNext {
-				cursorAlhpa = r
+				unpack(digit)
 			}
 		}
 	}
-	// check last symbol
+
 	if cursorAlhpa != 0 {
-		unpack(cursorAlhpa, 1)
+		unpack(1)
 	}
 
 	return result.String(), nil
 }
+
+//func processDigit

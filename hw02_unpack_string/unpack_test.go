@@ -21,7 +21,7 @@ func TestUnpack(t *testing.T) {
 		{input: `qwe\45`, expected: `qwe44444`},
 		{input: `qwe\\5`, expected: `qwe\\\\\`},
 		{input: `qwe\\\3`, expected: `qwe\3`},
-		//additional: escaped sym 0 times:
+		// additional: escaped sym 0 times:
 		{input: `\00`, expected: ``},
 	}
 
