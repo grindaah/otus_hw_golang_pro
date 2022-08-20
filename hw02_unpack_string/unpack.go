@@ -43,13 +43,13 @@ func Unpack(s string) (string, error) {
 			}
 			cursorAlhpa = r
 		} else {
+			if !escapedNext && cursorAlhpa == 0 {
+				return "", ErrInvalidString
+			}
 			if escapedNext {
 				cursorAlhpa = r
 				escapedNext = false
 			} else {
-				if cursorAlhpa == 0 {
-					return "", ErrInvalidString
-				}
 				digit, err := strconv.Atoi(string(r))
 				if err != nil {
 					return "", err
