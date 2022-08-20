@@ -30,19 +30,18 @@ func Unpack(s string) (string, error) {
 		if unicode.IsControl(r) {
 			return "", ErrInvalidString
 		}
-		if !unicode.IsDigit(r) {
-			// check for backslash
-			if r == 0x5C {
-				if cursorAlhpa != 0 {
-					unpack(1)
-				}
-				escapeNext(r)
-			} else {
-				if cursorAlhpa != 0 {
-					unpack(1)
-				}
-				cursorAlhpa = r
+		if r == 0x5C {
+			if cursorAlhpa != 0 {
+				unpack(1)
 			}
+			escapeNext(r)
+			continue
+		}
+		if !unicode.IsDigit(r) {
+			if cursorAlhpa != 0 {
+				unpack(1)
+			}
+			cursorAlhpa = r
 		} else {
 			if escapedNext {
 				cursorAlhpa = r
