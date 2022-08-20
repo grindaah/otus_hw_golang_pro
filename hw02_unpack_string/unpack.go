@@ -37,15 +37,15 @@ func Unpack(s string) (string, error) {
 			escapeNext(r)
 			continue
 		}
+		if unicode.IsDigit(r) && !escapedNext && cursorAlhpa == 0 {
+			return "", ErrInvalidString
+		}
 		if !unicode.IsDigit(r) {
 			if cursorAlhpa != 0 {
 				unpack(1)
 			}
 			cursorAlhpa = r
 		} else {
-			if !escapedNext && cursorAlhpa == 0 {
-				return "", ErrInvalidString
-			}
 			if escapedNext {
 				cursorAlhpa = r
 				escapedNext = false
