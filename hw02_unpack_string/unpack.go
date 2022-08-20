@@ -49,13 +49,13 @@ func Unpack(s string) (string, error) {
 			if escapedNext {
 				cursorAlhpa = r
 				escapedNext = false
-			} else {
-				digit, err := strconv.Atoi(string(r))
-				if err != nil {
-					return "", err
-				}
-				unpack(digit)
+				continue
 			}
+			digit, err := strconv.Atoi(string(r))
+			if err != nil {
+				return "", err
+			}
+			unpack(digit)
 		}
 	}
 
