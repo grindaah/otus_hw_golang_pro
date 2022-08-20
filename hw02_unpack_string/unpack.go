@@ -19,16 +19,20 @@ func Unpack(s string) (string, error) {
 		escapedNext = false
 	}
 	for _, r := range s {
+		if unicode.IsControl(r) {
+			return "", ErrInvalidString
+		}
 		if !unicode.IsDigit(r) {
 			// check for backslash
 			if r == 0x5C {
+				if cursorAlhpa != 0 {
+					unpack(cursorAlhpa, 1)
+				}
 				if !escapedNext {
 					escapedNext = true
 				} else {
-					if cursorAlhpa != 0 {
-						unpack(cursorAlhpa, 1)
-					}
 					cursorAlhpa = r
+					escapedNext = false
 				}
 
 				continue
@@ -42,6 +46,7 @@ func Unpack(s string) (string, error) {
 			//is digit
 			if escapedNext {
 				cursorAlhpa = r
+				escapedNext = false
 				continue
 				//
 			} else {
