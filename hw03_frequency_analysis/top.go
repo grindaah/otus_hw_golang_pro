@@ -1,7 +1,6 @@
 package hw03frequencyanalysis
 
 import (
-	"regexp"
 	"sort"
 	"strings"
 )
@@ -37,10 +36,8 @@ func Top10(s string) []string {
 	}
 
 	sort.Slice(wordsSlice, func(i, j int) bool {
-		return wordsSlice[i].Count > wordsSlice[j].Count
-	})
-	sort.Slice(wordsSlice, func(i, j int) bool {
-		return wordsSlice[i].Count == wordsSlice[j].Count && wordsSlice[i].Word < wordsSlice[j].Word
+		return wordsSlice[i].Count > wordsSlice[j].Count ||
+			(wordsSlice[i].Count == wordsSlice[j].Count && wordsSlice[i].Word < wordsSlice[j].Word)
 	})
 
 	sz := min(10, len(wordsSlice))
@@ -53,7 +50,8 @@ func Top10(s string) []string {
 }
 
 func normalizeString(s string) string {
-	r := regexp.MustCompile("\\b.*,?\\b")
-	w := r.FindString(s)
-	return w
+	// TODO find regexp for handling case-insensitive+ [,.]?
+	// r := regexp.MustCompile("\\b[\.,]?\\b")
+	// w := r.FindString(s)
+	return s
 }

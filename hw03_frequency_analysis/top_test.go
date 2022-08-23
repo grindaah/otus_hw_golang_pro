@@ -45,6 +45,49 @@ var text = `Как видите, он  спускается  по  лестни�
 
 var text2 = `cat and dog, one dog,two cats and one man`
 
+var text3 = `cat and dog, one dog,two cats and one man some come
+    get hit for some time pure words comes out when no longer to
+    wait please find what is more suite. what i want is to check
+    that no extra word will come in the end of top ten func.also
+    we need to know that,such words with comma between. let's do
+    some more we put some extra - dashes - to take into list - -
+    this test checks that dash comes first by order and word 
+    word (2) is not in list due to lexicographical order`
+
+func TestNormalize(t *testing.T) {
+	testcases := []struct {
+		input    string
+		expected string
+	}{
+		{
+			input:    "dog",
+			expected: "dog",
+		},
+		{
+			input:    "dog,",
+			expected: "dog,",
+		},
+		{
+			input:    "dog,cat",
+			expected: "dog,cat",
+		},
+		{
+			input:    "иногда,",
+			expected: "иногда,",
+		},
+		{
+			input:    "(2)",
+			expected: "(2)",
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run("simple word", func(t *testing.T) {
+			require.Equal(t, tc.expected, normalizeString(tc.input))
+		})
+	}
+}
+
 func TestTop10(t *testing.T) {
 	t.Run("no words in empty string", func(t *testing.T) {
 		require.Len(t, Top10(""), 0)
@@ -92,6 +135,38 @@ func TestTop10(t *testing.T) {
 				"то",        // 4
 			}
 			require.Equal(t, expected, Top10(text))
+		}
+	})
+
+	t.Run("positive test2", func(t *testing.T) {
+		if taskWithAsteriskIsCompleted {
+			expected := []string{
+				"to",    // 5
+				"-",     // 4
+				"some",  // 4
+				"and",   // 3
+				"is",    // 3
+				"word",  // 3
+				"come",  // 2
+				"comes", // 2
+				"extra", // 2
+				"in",    // 2
+			}
+			require.Equal(t, expected, Top10(text))
+		} else {
+			expected := []string{
+				"to",    // 5
+				"-",     // 4
+				"some",  // 4
+				"and",   // 3
+				"is",    // 3
+				"word",  // 3
+				"come",  // 2
+				"comes", // 2
+				"extra", // 2
+				"in",    // 2
+			}
+			require.Equal(t, expected, Top10(text3))
 		}
 	})
 }
