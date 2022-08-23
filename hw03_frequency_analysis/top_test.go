@@ -95,12 +95,12 @@ func TestTop10(t *testing.T) {
 
 	t.Run("test from README", func(t *testing.T) {
 		expected := []string{
-			"and",     //(2)
-			"one",     //(2)
-			"cat",     //(1)
-			"cats",    //(1)
-			"dog,",    //(1)
-			"dog,two", //(1)
+			"and",     // (2)
+			"one",     // (2)
+			"cat",     // (1)
+			"cats",    // (1)
+			"dog,",    // (1)
+			"dog,two", // (1)
 			"man",
 		}
 		require.Equal(t, expected, Top10(text2))

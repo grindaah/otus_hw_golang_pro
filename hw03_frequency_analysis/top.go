@@ -21,7 +21,7 @@ func Top10(s string) []string {
 	if len(s) == 0 {
 		return []string{}
 	}
-	wordsMap := make(map[string]int, 0)
+	wordsMap := make(map[string]int)
 	wordsSlice := make([]WordCounter, 0)
 
 	flds := strings.Fields(s)
