@@ -50,13 +50,58 @@ func TestCache(t *testing.T) {
 	})
 
 	t.Run("purge logic", func(t *testing.T) {
-		// Write me
+		c := NewCache(3)
+
+		c.Set("aaa", 100)
+		c.Set("bbb", 200)
+		c.Set("ccc", 300)
+		c.Set("ddd", 400)
+
+		// aaa is pushed out
+		_, ok := c.Get("aaa")
+		require.False(t, ok)
+	})
+
+	t.Run("extrusion", func(t *testing.T) {
+		c := NewCache(5)
+
+		c.Set("aaa", 100)
+		c.Set("bbb", 200)
+		c.Set("ccc", 300)
+		c.Set("ddd", 400)
+		c.Set("fff", 500)
+
+		// setting and getting all except "aaa"
+		_, ok := c.Get("bbb")
+		require.True(t, ok)
+
+		_, ok = c.Get("ddd")
+		require.True(t, ok)
+
+		_, ok = c.Get("fff")
+		require.True(t, ok)
+
+		_, ok = c.Get("ccc")
+		require.True(t, ok)
+
+		// "aaa" wasn't used and will be extruded on next step
+
+		ok = c.Set("qqq", 555)
+		require.False(t, ok)
+
+		_, ok = c.Get("aaa")
+		require.False(t, ok)
+
+		// next rare used is "bbb" - new "aaa" will push it out
+		ok = c.Set("aaa", 1000)
+		require.False(t, ok)
+
+		_, ok = c.Get("bbb")
+		require.False(t, ok)
 	})
 }
 
 func TestCacheMultithreading(t *testing.T) {
-	t.Skip() // Remove me if task with asterisk completed.
-
 	c := NewCache(10)
 	wg := &sync.WaitGroup{}
 	wg.Add(2)
