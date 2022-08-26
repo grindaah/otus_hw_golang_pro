@@ -17,12 +17,9 @@ type ListItem struct {
 }
 
 type list struct {
-	//List // Remove me after realization.
-	// Place your code here.
 	front  *ListItem
 	back   *ListItem
 	length int
-	//store map[*ListItem]interface{}
 }
 
 func (l *list) Len() int {
@@ -78,7 +75,6 @@ func (l *list) insertFirstItem(v interface{}) *ListItem {
 	l.back = li
 	l.front = li
 	l.length++
-	//l.store[li] = nil
 	return li
 }
 
@@ -106,10 +102,14 @@ func (l *list) MoveToFront(i *ListItem) {
 	if i == l.front {
 		return
 	}
+	if i == l.back {
+		l.back = l.back.Prev
+	}
 	i.Prev.Next = i.Next
 	i.Next = l.front
 	l.front.Prev = i
 	i.Prev = nil
+	l.front = i
 }
 
 func NewList() List {

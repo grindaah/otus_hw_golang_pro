@@ -39,6 +39,10 @@ func TestList(t *testing.T) {
 		require.Equal(t, 80, l.Front().Value)
 		require.Equal(t, 70, l.Back().Value)
 
+		// [80, 60, 40, 10, 30, 50, 70]
+		//                  ^^
+		require.Equal(t, 30, l.Back().Prev.Prev.Value)
+
 		l.MoveToFront(l.Front()) // [80, 60, 40, 10, 30, 50, 70]
 		l.MoveToFront(l.Back())  // [70, 80, 60, 40, 10, 30, 50]
 
@@ -47,5 +51,32 @@ func TestList(t *testing.T) {
 			elems = append(elems, i.Value.(int))
 		}
 		require.Equal(t, []int{70, 80, 60, 40, 10, 30, 50}, elems)
+	})
+
+	t.Run("corner cases", func(t *testing.T) {
+		l := NewList()
+
+		l.PushFront(10) // [10]
+		l.Remove(l.Front())
+
+		require.Equal(t, 0, l.Len())
+
+		l.PushBack(10) // [10]
+		l.Remove(l.Front())
+
+		require.Equal(t, 0, l.Len())
+
+		l.PushBack(10)           // [10]
+		l.MoveToFront(l.Front()) // [10]
+
+		require.Equal(t, 1, l.Len())
+		// check that back equal front when we have only 1 elem
+		require.Equal(t, 10, l.Back().Value.(int))
+
+		elems := make([]int, 0, l.Len())
+		for i := l.Front(); i != nil; i = i.Next {
+			elems = append(elems, i.Value.(int))
+		}
+		require.Equal(t, []int{10}, elems)
 	})
 }
