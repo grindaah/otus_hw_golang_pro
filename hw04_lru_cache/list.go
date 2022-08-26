@@ -45,9 +45,9 @@ func (l *list) PushFront(v interface{}) *ListItem {
 		l.front = li
 		l.length++
 		return li
-	} else {
-		return l.insertFirstItem(v)
 	}
+
+	return l.insertFirstItem(v)
 }
 
 func (l *list) PushBack(v interface{}) *ListItem {
@@ -61,9 +61,9 @@ func (l *list) PushBack(v interface{}) *ListItem {
 		l.back = li
 		l.length++
 		return li
-	} else {
-		return l.insertFirstItem(v)
 	}
+
+	return l.insertFirstItem(v)
 }
 
 func (l *list) insertFirstItem(v interface{}) *ListItem {
