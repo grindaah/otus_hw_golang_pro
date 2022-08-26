@@ -84,12 +84,19 @@ func TestCache(t *testing.T) {
 		_, ok = c.Get("ccc")
 		require.True(t, ok)
 
-		// "aaa" wasn't used and will be extrused on next step
+		// "aaa" wasn't used and will be extruded on next step
 
 		ok = c.Set("qqq", 555)
 		require.False(t, ok)
 
 		_, ok = c.Get("aaa")
+		require.False(t, ok)
+
+		// next rare used is "bbb" - new "aaa" will push it out
+		ok = c.Set("aaa", 1000)
+		require.False(t, ok)
+
+		_, ok = c.Get("bbb")
 		require.False(t, ok)
 	})
 }
