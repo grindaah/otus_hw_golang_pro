@@ -30,49 +30,77 @@ func Run(tasks []Task, n, m int) (err error) {
 	chanErrors := make(chan error)
 
 	chanDone := make(chan string)
+
+	chanWorkerFinish := make(chan string, n)
+	chanWorkersFinished := make(chan string)
+	chanFinishProducer := make(chan string)
+	chanFinishErrorChecker := make(chan string)
+
 	var errCounter Counter
 	var wg sync.WaitGroup
-	wg.Add(n)
+	wg.Add(n + 2)
 
-	Producer := func(tasks []Task) <-chan Task {
+	Producer := func(tasks []Task, wg *sync.WaitGroup) <-chan Task {
 		//defer wg.Done()
+		defer func() {
+			fmt.Println("closing producer")
+			wg.Done()
+		}()
 		chanTasks := make(chan Task, n)
 		go func() {
 			defer func() {
 				fmt.Println("closing channel... chanTasks")
 				close(chanTasks)
 			}()
-			for i := 0; i < len(tasks); i++ {
+			for i := 0; i < len(tasks); {
 				select {
 				case chanTasks <- tasks[i]:
+					i++
 					continue
-				case <-chanErrorsExceeded:
-					fmt.Println("receive errExceeded... closing channel")
-					//for j := 0; j < n; j++ {
-					chanErrorsExceeded <- "error channel"
-					//}
+				case f := <-chanFinishProducer:
+					fmt.Println("received", f)
 					return
-					/*default:
-					time.Sleep(time.Millisecond * 200)
-					fmt.Println("skipping...")*/
+				default:
+					continue
 				}
 			}
+			return
 		}()
 		return chanTasks
 	}
 
-	/*Dispatcher := func() {
+	Dispatcher := func() {
+		defer func() {
+			fmt.Println("closing dispatcher")
+		}
 		for {
 			select {
 			case <-chanErrorsExceeded:
 				// errchecker will exit itself
-
+				for i := 0; i < n; i++ {
+					fmt.Println("sending finish signal", i)
+					chanWorkerFinish <- "finish by error exceeded " + strconv.Itoa(i)
+				}
+				chanFinishProducer <- "from dispatcher (1)"
+			case <-chanWorkersFinished:
+				chanFinishProducer <- "from dispatcher (2)"
+				chanFinishErrorChecker <- "from dispatcher (3)"
+			case <-chanDone:
+				return
+			default:
+				continue
 			}
 		}
-	}*/
+		return
+	}
 
-	ErrChecker := func() {
-		//defer close(chanErrors)
+	go Dispatcher()
+
+	ErrChecker := func(wg *sync.WaitGroup) {
+		defer func() {
+			fmt.Println("closing errchecker")
+			wg.Done()
+		}()
 		for {
 			select {
 			case e := <-chanErrors:
@@ -83,7 +111,7 @@ func Run(tasks []Task, n, m int) (err error) {
 					chanErrorsExceeded <- "5"
 					return
 				}
-			case <-chanDone:
+			case <-chanFinishErrorChecker:
 				return
 			default:
 				continue
@@ -92,7 +120,7 @@ func Run(tasks []Task, n, m int) (err error) {
 		return
 	}
 
-	chanTasksReady := Producer(tasks)
+	chanTasksReady := Producer(tasks, &wg)
 	//Consumer
 	RunWorker := func(wgMain *sync.WaitGroup, number int) {
 		defer func() {
@@ -101,24 +129,25 @@ func Run(tasks []Task, n, m int) (err error) {
 		}()
 		for {
 			select {
-			case t, ok := <-chanTasksReady:
-				fmt.Println("worker...", ok)
-				if !ok {
-					fmt.Println("exit by close channel", number)
-					//chanDone <- struct{}{}
-					return
-				} else {
-					err := t()
-					if err != nil {
-						err = fmt.Errorf("worker N %d error:%w", number, err)
-						chanErrors <- err
-						continue
-					}
-				}
-			case <-chanErrorsExceeded:
+			case <-chanWorkerFinish:
 				fmt.Println("worker exiting", number)
-				chanErrorsExceeded <- strconv.Itoa(number)
+				//chanErrorsExceeded <- strconv.Itoa(number)
 				return
+			case t := <-chanTasksReady:
+				fmt.Println("worker... ", number) //, haveTask)
+				//if haveTask {
+				err := t()
+				if err != nil {
+					err = fmt.Errorf("worker N %d error:%w", number, err)
+					chanErrors <- err
+					continue
+				}
+
+				//} else {
+				//	fmt.Println("exit by close channel", number)
+				//	//chanDone <- struct{}{}
+				//	return
+				//}
 			default:
 				time.Sleep(200 * time.Millisecond)
 				fmt.Println("default...")
@@ -128,7 +157,7 @@ func Run(tasks []Task, n, m int) (err error) {
 		return
 	}
 
-	go ErrChecker()
+	go ErrChecker(&wg)
 	//go Producer(cha)
 	for i := 0; i < n; i++ {
 		go RunWorker(&wg, i)
