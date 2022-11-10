@@ -3,9 +3,7 @@ package hw05parallelexecution
 import (
 	"errors"
 	"fmt"
-	"strconv"
 	"sync"
-	"time"
 )
 
 var ErrErrorsLimitExceeded = errors.New("errors limit exceeded")
@@ -23,148 +21,116 @@ func (c *Counter) Inc() {
 	c.Unlock()
 }
 
+func (c *Counter) Dec() {
+	c.Lock()
+	c.i--
+	c.Unlock()
+}
+
+func (c *Counter) Get() int {
+	c.Lock()
+	defer c.Unlock()
+	return c.i
+}
+
 // Run starts tasks in n goroutines and stops its work when receiving m errors from tasks.
 func Run(tasks []Task, n, m int) (err error) {
-
-	chanErrorsExceeded := make(chan string, 1)
-	chanErrors := make(chan error)
-
-	chanDone := make(chan string)
-
-	chanWorkerFinish := make(chan string, n)
-	chanWorkersFinished := make(chan string)
-	chanFinishProducer := make(chan string)
-	chanFinishErrorChecker := make(chan string)
-
-	var errCounter Counter
+	var done = make(chan bool)
+	var tasksChan = make(chan Task, 1)
+	var errs = make(chan error, 1)
+	var closeWorker = make(chan Counter)
 	var wg sync.WaitGroup
-	wg.Add(n + 2)
+	var errCounter Counter
 
-	Producer := func(tasks []Task, wg *sync.WaitGroup) <-chan Task {
-		//defer wg.Done()
+	wg.Add(n)
+
+	produce := func() {
 		defer func() {
-			fmt.Println("closing producer")
-			wg.Done()
+			//close(tasksChan)
+			done <- true
+			closeWorker <- Counter{i: n}
+			fmt.Println("closing produce")
 		}()
-		chanTasks := make(chan Task, n)
-		go func() {
-			defer func() {
-				fmt.Println("closing channel... chanTasks")
-				close(chanTasks)
-			}()
-			for i := 0; i < len(tasks); {
+		for i := 0; i < len(tasks); {
+			select {
+			case <-errs:
+				errCounter.Inc()
+				fmt.Println("errCounter=", errCounter.Get(), ",m=", m)
+				if errCounter.Get() >= m {
+					fmt.Println("exceeded errors")
+					err = ErrErrorsLimitExceeded
+					return
+				}
+			default:
 				select {
-				case chanTasks <- tasks[i]:
+				case tasksChan <- tasks[i]:
+					fmt.Println("sending task", i)
 					i++
 					continue
-				case f := <-chanFinishProducer:
-					fmt.Println("received", f)
-					return
 				default:
-					continue
+					//fmt.Println("default select")
+					//time.Sleep(time.Millisecond * 100)
 				}
 			}
-			return
-		}()
-		return chanTasks
+		}
+		fmt.Println("exited from cycle")
 	}
 
-	Dispatcher := func() {
+	consume := func(waitGroup *sync.WaitGroup, number int) {
 		defer func() {
-			fmt.Println("closing dispatcher")
-		}
-		for {
-			select {
-			case <-chanErrorsExceeded:
-				// errchecker will exit itself
-				for i := 0; i < n; i++ {
-					fmt.Println("sending finish signal", i)
-					chanWorkerFinish <- "finish by error exceeded " + strconv.Itoa(i)
-				}
-				chanFinishProducer <- "from dispatcher (1)"
-			case <-chanWorkersFinished:
-				chanFinishProducer <- "from dispatcher (2)"
-				chanFinishErrorChecker <- "from dispatcher (3)"
-			case <-chanDone:
-				return
-			default:
-				continue
-			}
-		}
-		return
-	}
-
-	go Dispatcher()
-
-	ErrChecker := func(wg *sync.WaitGroup) {
-		defer func() {
-			fmt.Println("closing errchecker")
-			wg.Done()
+			fmt.Println("done...", number)
+			waitGroup.Done()
 		}()
 		for {
 			select {
-			case e := <-chanErrors:
-				fmt.Println("error received", e.Error())
-				errCounter.Inc()
-				if errCounter.i > m {
-					fmt.Println("send close by channel condition")
-					chanErrorsExceeded <- "5"
-					return
-				}
-			case <-chanFinishErrorChecker:
-				return
-			default:
-				continue
-			}
-		}
-		return
-	}
-
-	chanTasksReady := Producer(tasks, &wg)
-	//Consumer
-	RunWorker := func(wgMain *sync.WaitGroup, number int) {
-		defer func() {
-			fmt.Println("exiting worker... ", number)
-			wg.Done()
-		}()
-		for {
-			select {
-			case <-chanWorkerFinish:
-				fmt.Println("worker exiting", number)
-				//chanErrorsExceeded <- strconv.Itoa(number)
-				return
-			case t := <-chanTasksReady:
-				fmt.Println("worker... ", number) //, haveTask)
-				//if haveTask {
+			case t := <-tasksChan:
 				err := t()
 				if err != nil {
-					err = fmt.Errorf("worker N %d error:%w", number, err)
-					chanErrors <- err
-					continue
+					fmt.Println("received err", err.Error())
+					select {
+					case errs <- err:
+					default:
+						fmt.Println("dropped")
+					}
+
+				} else {
+					fmt.Println("task completed")
 				}
-
-				//} else {
-				//	fmt.Println("exit by close channel", number)
-				//	//chanDone <- struct{}{}
-				//	return
-				//}
 			default:
-				time.Sleep(200 * time.Millisecond)
-				fmt.Println("default...")
-				continue
+				select {
+				case remained := <-closeWorker:
+					fmt.Println("closing worker", number, "remained", remained.i)
+					//propagate to others
+					remained.Dec()
+					if remained.i > 0 {
+						closeWorker <- remained
+					}
+					return
+				default:
+					//time.Sleep(time.Millisecond * 50)
+				}
 			}
+			//t, haveMore := <-tasksChan
+			//if haveMore {
+			//	err := t()
+			//	if err != nil {
+			//		fmt.Println("received err", err.Error())
+			//		errs <- err
+			//	} else {
+			//		fmt.Println("task completed")
+			//	}
+			//} else {
+			//	return
+			//}
 		}
-		return
 	}
 
-	go ErrChecker(&wg)
-	//go Producer(cha)
+	go produce()
 	for i := 0; i < n; i++ {
-		go RunWorker(&wg, i)
+		go consume(&wg, i)
 	}
-
+	<-done
 	wg.Wait()
-	chanDone <- "aaa"
 
 	return err
 }
