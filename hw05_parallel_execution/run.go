@@ -38,7 +38,7 @@ func Run(tasks []Task, n, m int) (err error) {
 	var done = make(chan bool)
 	var tasksChan = make(chan Task, 1)
 	var errs = make(chan error, 1)
-	var closeWorker = make(chan Counter)
+	var closeWorker = make(chan *Counter)
 	var wg sync.WaitGroup
 	var errCounter Counter
 
@@ -48,7 +48,7 @@ func Run(tasks []Task, n, m int) (err error) {
 		defer func() {
 			//close(tasksChan)
 			done <- true
-			closeWorker <- Counter{i: n}
+			closeWorker <- &Counter{i: n}
 			fmt.Println("closing produce")
 		}()
 		for i := 0; i < len(tasks); {
