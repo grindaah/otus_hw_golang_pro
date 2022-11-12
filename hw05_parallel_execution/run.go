@@ -6,8 +6,10 @@ import (
 	"sync"
 )
 
-var ErrErrorsLimitExceeded = errors.New("errors limit exceeded")
-var ErrWorkersNotPassed = errors.New("workers n value must be passed more than 0")
+var (
+	ErrErrorsLimitExceeded = errors.New("errors limit exceeded")
+	ErrWorkersNotPassed    = errors.New("workers n value must be passed more than 0")
+)
 
 type Task func() error
 
