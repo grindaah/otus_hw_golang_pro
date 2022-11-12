@@ -7,6 +7,7 @@ import (
 )
 
 var ErrErrorsLimitExceeded = errors.New("errors limit exceeded")
+var ErrWorkersNotPassed = errors.New("workers n value must be passed more than 0")
 
 type Task func() error
 
@@ -34,13 +35,19 @@ func (c *Counter) Get() int {
 }
 
 // Run starts tasks in n goroutines and stops its work when receiving m errors from tasks.
+// m <= 0 treated as ignoring all errors.
 func Run(tasks []Task, n, m int) (err error) {
+	if n <= 0 {
+		return ErrWorkersNotPassed
+	}
+
 	done := make(chan bool)
 	tasksChan := make(chan Task, 1)
 	errs := make(chan error, 1)
 	closeWorker := make(chan *Counter)
 	var wg sync.WaitGroup
 	var errCounter Counter
+	ignoreErrors := m <= 0
 
 	wg.Add(n)
 
@@ -53,11 +60,13 @@ func Run(tasks []Task, n, m int) (err error) {
 		for i := 0; i < len(tasks); {
 			select {
 			case <-errs:
-				errCounter.Inc()
-				if errCounter.Get() >= m {
-					fmt.Println("exceeded errors")
-					err = ErrErrorsLimitExceeded
-					return
+				if !ignoreErrors {
+					errCounter.Inc()
+					if errCounter.Get() >= m {
+						fmt.Println("exceeded errors")
+						err = ErrErrorsLimitExceeded
+						return
+					}
 				}
 			default:
 				select {
@@ -65,8 +74,6 @@ func Run(tasks []Task, n, m int) (err error) {
 					i++
 					continue
 				default:
-					// fmt.Println("default select")
-					// time.Sleep(time.Millisecond * 100)
 				}
 			}
 		}

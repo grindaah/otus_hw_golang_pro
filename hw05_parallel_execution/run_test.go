@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -44,6 +45,7 @@ func TestRun(t *testing.T) {
 
 		var runTasksCount int32
 		var sumTime time.Duration
+		var m sync.Mutex
 
 		for i := 0; i < tasksCount; i++ {
 			var err error
@@ -53,7 +55,9 @@ func TestRun(t *testing.T) {
 			tasks = append(tasks, func() error {
 				taskSleep := time.Millisecond * time.Duration(rand.Intn(100))
 				time.Sleep(taskSleep)
+				m.Lock()
 				sumTime += taskSleep
+				m.Unlock()
 				atomic.AddInt32(&runTasksCount, 1)
 				return err
 			})
@@ -77,6 +81,7 @@ func TestRun(t *testing.T) {
 
 		var runTasksCount int32
 		var sumTime time.Duration
+		var m sync.Mutex
 
 		for i := 0; i < tasksCount; i++ {
 			var err error
@@ -86,7 +91,9 @@ func TestRun(t *testing.T) {
 			tasks = append(tasks, func() error {
 				taskSleep := time.Millisecond * time.Duration(rand.Intn(100))
 				time.Sleep(taskSleep)
+				m.Lock()
 				sumTime += taskSleep
+				m.Unlock()
 				atomic.AddInt32(&runTasksCount, 1)
 				return err
 			})
@@ -135,6 +142,7 @@ func TestRun(t *testing.T) {
 	})
 }
 
+// additional test using require.Eventually, so can add stress tests.
 func TestAdditional(t *testing.T) {
 	defer goleak.VerifyNone(t)
 
@@ -144,6 +152,7 @@ func TestAdditional(t *testing.T) {
 
 		var runTasksCount int32
 		var sumTime time.Duration
+		var m sync.Mutex
 
 		for i := 0; i < tasksCount; i++ {
 			var err error
@@ -153,7 +162,9 @@ func TestAdditional(t *testing.T) {
 			tasks = append(tasks, func() error {
 				taskSleep := time.Millisecond * time.Duration(rand.Intn(100))
 				time.Sleep(taskSleep)
+				m.Lock()
 				sumTime += taskSleep
+				m.Unlock()
 				atomic.AddInt32(&runTasksCount, 1)
 				return err
 			})
@@ -162,12 +173,94 @@ func TestAdditional(t *testing.T) {
 		workersCount := 14
 		maxErrorsCount := 8
 
-		// start := time.Now()
+		start := time.Now()
 		_ = Run(tasks, workersCount, maxErrorsCount)
-		// elapsedTime := time.Since(start)
+		elapsedTime := time.Since(start)
 
 		require.Eventually(t, func() bool {
 			return runTasksCount == int32(tasksCount)
+		}, sumTime/2, time.Millisecond*20)
+		require.Eventually(t, func() bool {
+			return elapsedTime <= sumTime/2
+		}, sumTime/2, time.Millisecond*20)
+	})
+
+	// passed with 100000 reduced for quick pass.
+	t.Run("stress (eventually)", func(t *testing.T) {
+		tasksCount := 1000
+		tasks := make([]Task, 0, tasksCount)
+
+		var runTasksCount int32
+		var sumTime time.Duration
+		var m sync.Mutex
+
+		for i := 0; i < tasksCount; i++ {
+			var err error
+			if i%200 == 0 {
+				err = fmt.Errorf("error from task %d", i)
+			}
+			tasks = append(tasks, func() error {
+				taskSleep := time.Millisecond * time.Duration(rand.Intn(100))
+				time.Sleep(taskSleep)
+				m.Lock()
+				sumTime += taskSleep
+				m.Unlock()
+				atomic.AddInt32(&runTasksCount, 1)
+				return err
+			})
+		}
+
+		workersCount := 25
+		maxErrorsCount := 6
+
+		start := time.Now()
+		_ = Run(tasks, workersCount, maxErrorsCount)
+		elapsedTime := time.Since(start)
+
+		require.Eventually(t, func() bool {
+			return runTasksCount == int32(tasksCount)
+		}, sumTime/2, time.Millisecond*20)
+		require.Eventually(t, func() bool {
+			return elapsedTime <= sumTime/2
+		}, sumTime/2, time.Millisecond*20)
+	})
+
+	t.Run("ignore errors", func(t *testing.T) {
+		tasksCount := 1000
+		tasks := make([]Task, 0, tasksCount)
+
+		var runTasksCount int32
+		var sumTime time.Duration
+		var m sync.Mutex
+
+		for i := 0; i < tasksCount; i++ {
+			var err error
+			if i%50 == 0 {
+				err = fmt.Errorf("error from task %d", i)
+			}
+			tasks = append(tasks, func() error {
+				taskSleep := time.Millisecond * time.Duration(rand.Intn(100))
+				time.Sleep(taskSleep)
+				m.Lock()
+				sumTime += taskSleep
+				m.Unlock()
+				atomic.AddInt32(&runTasksCount, 1)
+				return err
+			})
+		}
+
+		workersCount := 25
+		maxErrorsCount := 0
+
+		start := time.Now()
+		_ = Run(tasks, workersCount, maxErrorsCount)
+		elapsedTime := time.Since(start)
+
+		require.Eventually(t, func() bool {
+			return runTasksCount == int32(tasksCount)
+		}, sumTime/2, time.Millisecond*20)
+		require.Eventually(t, func() bool {
+			return elapsedTime <= sumTime/2
 		}, sumTime/2, time.Millisecond*20)
 	})
 }
