@@ -73,45 +73,43 @@ func Run(tasks []Task, n, m int) (err error) {
 		fmt.Println("exited from cycle")
 	}
 
-	consume := func(waitGroup *sync.WaitGroup, number int) {
-		defer func() {
-			fmt.Println("done...", number)
-			waitGroup.Done()
-		}()
-		for {
-			select {
-			case t := <-tasksChan:
-				err := t()
-				if err != nil {
-					select {
-					case errs <- err:
-					default:
-					}
-				} else {
-					fmt.Println("task completed")
-				}
-			default:
-				select {
-				case remained := <-closeWorker:
-					fmt.Println("closing worker", number, "remained", remained.i)
-					// propagate to others
-					remained.Dec()
-					if remained.i > 0 {
-						closeWorker <- remained
-					}
-					return
-				default:
-				}
-			}
-		}
-	}
-
 	go produce()
 	for i := 0; i < n; i++ {
-		go consume(&wg, i)
+		go consume(&wg, i, tasksChan, errs, closeWorker)
 	}
 	<-done
 	wg.Wait()
 
 	return err
+}
+
+func consume(waitGroup *sync.WaitGroup, number int, tasks <-chan Task, errs chan<- error, closeWorker chan *Counter) {
+	defer func() {
+		fmt.Println("done...", number)
+		waitGroup.Done()
+	}()
+	for {
+		select {
+		case t := <-tasks:
+			err := t()
+			if err != nil {
+				select {
+				case errs <- err:
+				default:
+				}
+			}
+		default:
+			select {
+			case remained := <-closeWorker:
+				fmt.Println("closing worker", number, "remained", remained.i)
+				// propagate to others
+				remained.Dec()
+				if remained.i > 0 {
+					closeWorker <- remained
+				}
+				return
+			default:
+			}
+		}
+	}
 }
