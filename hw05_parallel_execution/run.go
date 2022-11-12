@@ -35,10 +35,10 @@ func (c *Counter) Get() int {
 
 // Run starts tasks in n goroutines and stops its work when receiving m errors from tasks.
 func Run(tasks []Task, n, m int) (err error) {
-	var done = make(chan bool)
-	var tasksChan = make(chan Task, 1)
-	var errs = make(chan error, 1)
-	var closeWorker = make(chan *Counter)
+	done := make(chan bool)
+	tasksChan := make(chan Task, 1)
+	errs := make(chan error, 1)
+	closeWorker := make(chan *Counter)
 	var wg sync.WaitGroup
 	var errCounter Counter
 
@@ -46,7 +46,6 @@ func Run(tasks []Task, n, m int) (err error) {
 
 	produce := func() {
 		defer func() {
-			//close(tasksChan)
 			done <- true
 			closeWorker <- &Counter{i: n}
 			fmt.Println("closing produce")
@@ -55,7 +54,6 @@ func Run(tasks []Task, n, m int) (err error) {
 			select {
 			case <-errs:
 				errCounter.Inc()
-				fmt.Println("errCounter=", errCounter.Get(), ",m=", m)
 				if errCounter.Get() >= m {
 					fmt.Println("exceeded errors")
 					err = ErrErrorsLimitExceeded
@@ -64,12 +62,11 @@ func Run(tasks []Task, n, m int) (err error) {
 			default:
 				select {
 				case tasksChan <- tasks[i]:
-					fmt.Println("sending task", i)
 					i++
 					continue
 				default:
-					//fmt.Println("default select")
-					//time.Sleep(time.Millisecond * 100)
+					// fmt.Println("default select")
+					// time.Sleep(time.Millisecond * 100)
 				}
 			}
 		}
@@ -86,13 +83,10 @@ func Run(tasks []Task, n, m int) (err error) {
 			case t := <-tasksChan:
 				err := t()
 				if err != nil {
-					fmt.Println("received err", err.Error())
 					select {
 					case errs <- err:
 					default:
-						fmt.Println("dropped")
 					}
-
 				} else {
 					fmt.Println("task completed")
 				}
@@ -100,28 +94,15 @@ func Run(tasks []Task, n, m int) (err error) {
 				select {
 				case remained := <-closeWorker:
 					fmt.Println("closing worker", number, "remained", remained.i)
-					//propagate to others
+					// propagate to others
 					remained.Dec()
 					if remained.i > 0 {
 						closeWorker <- remained
 					}
 					return
 				default:
-					//time.Sleep(time.Millisecond * 50)
 				}
 			}
-			//t, haveMore := <-tasksChan
-			//if haveMore {
-			//	err := t()
-			//	if err != nil {
-			//		fmt.Println("received err", err.Error())
-			//		errs <- err
-			//	} else {
-			//		fmt.Println("task completed")
-			//	}
-			//} else {
-			//	return
-			//}
 		}
 	}
 
