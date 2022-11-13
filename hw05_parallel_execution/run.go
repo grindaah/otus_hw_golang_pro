@@ -70,13 +70,10 @@ func Run(tasks []Task, n, m int) (err error) {
 						return
 					}
 				}
+			case tasksChan <- tasks[i]:
+				i++
+				continue
 			default:
-				select {
-				case tasksChan <- tasks[i]:
-					i++
-					continue
-				default:
-				}
 			}
 		}
 		fmt.Println("exited from cycle")
