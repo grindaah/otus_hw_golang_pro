@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"sync/atomic"
 )
 
 var (
@@ -13,29 +14,6 @@ var (
 
 type Task func() error
 
-type Counter struct {
-	sync.Mutex
-	i int
-}
-
-func (c *Counter) Inc() {
-	c.Lock()
-	c.i++
-	c.Unlock()
-}
-
-func (c *Counter) Dec() {
-	c.Lock()
-	c.i--
-	c.Unlock()
-}
-
-func (c *Counter) Get() int {
-	c.Lock()
-	defer c.Unlock()
-	return c.i
-}
-
 // Run starts tasks in n goroutines and stops its work when receiving m errors from tasks.
 // m <= 0 treated as ignoring all errors.
 func Run(tasks []Task, n, m int) (err error) {
@@ -43,28 +21,26 @@ func Run(tasks []Task, n, m int) (err error) {
 		return ErrWorkersNotPassed
 	}
 
-	done := make(chan bool)
 	tasksChan := make(chan Task, 1)
-	errs := make(chan error, 1)
-	closeWorker := make(chan *Counter)
+	errs := make(chan error, 10)
+	closeWorker := make(chan struct{})
 	var wg sync.WaitGroup
-	var errCounter Counter
+	var errCounter int32
 	ignoreErrors := m <= 0
 
 	wg.Add(n)
 
 	produce := func() {
 		defer func() {
-			done <- true
-			closeWorker <- &Counter{i: n}
+			close(closeWorker)
 			fmt.Println("closing produce")
 		}()
 		for i := 0; i < len(tasks); {
 			select {
 			case <-errs:
 				if !ignoreErrors {
-					errCounter.Inc()
-					if errCounter.Get() >= m {
+					atomic.AddInt32(&errCounter, 1)
+					if errCounter >= int32(m) {
 						fmt.Println("exceeded errors")
 						err = ErrErrorsLimitExceeded
 						return
@@ -83,13 +59,12 @@ func Run(tasks []Task, n, m int) (err error) {
 	for i := 0; i < n; i++ {
 		go consume(&wg, i, tasksChan, errs, closeWorker)
 	}
-	<-done
 	wg.Wait()
 
 	return err
 }
 
-func consume(waitGroup *sync.WaitGroup, number int, tasks <-chan Task, errs chan<- error, closeWorker chan *Counter) {
+func consume(waitGroup *sync.WaitGroup, number int, tasks <-chan Task, errs chan<- error, closeWorker <-chan struct{}) {
 	defer func() {
 		fmt.Println("done...", number)
 		waitGroup.Done()
@@ -99,20 +74,12 @@ func consume(waitGroup *sync.WaitGroup, number int, tasks <-chan Task, errs chan
 		case t := <-tasks:
 			err := t()
 			if err != nil {
-				select {
-				case errs <- err:
-				default:
-				}
+				errs <- err
 			}
 		default:
 			select {
-			case remained := <-closeWorker:
-				fmt.Println("closing worker", number, "remained", remained.i)
-				// propagate to others
-				remained.Dec()
-				if remained.i > 0 {
-					closeWorker <- remained
-				}
+			case <-closeWorker:
+				fmt.Println("closing worker", number)
 				return
 			default:
 			}
