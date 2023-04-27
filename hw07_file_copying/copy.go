@@ -32,18 +32,26 @@ func Copy(fromPath, toPath string, offset, limit int64) error {
 	toFile.Chmod(0644 | os.ModeAppend)
 	defer toFile.Close()
 
-	//f.Seek(offset, 0)
 	currentOffset := offset
 	chunkSize := int64(chunkSizeDefault)
+
+	//handling limit
+	if limit > 0 && limit-offset < chunkSize {
+		chunkSize = limit - offset
+	}
+	if limit > 0 && limit < sz {
+		sz = limit
+	}
 	var written int64
 
 	for {
-		if sz-currentOffset < chunkSizeDefault {
+		if sz-currentOffset < chunkSize {
 			chunkSize = sz - currentOffset
 		}
 
 		f.Seek(currentOffset, 0)
-		toFile.Seek(currentOffset, 0)
+		writeOffset := currentOffset - offset
+		toFile.Seek(writeOffset, 0)
 		wr, errW := io.CopyN(toFile, f, chunkSize)
 		if errW != nil {
 			return errW
