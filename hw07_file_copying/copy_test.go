@@ -22,6 +22,14 @@ func TestCopy(t *testing.T) {
 			outFile:   "./out.txt",
 			expectErr: ErrOffsetExceedsFileSize,
 		},
+		{
+			name:      "check error on directory",
+			limit:     1000,
+			offset:    100000,
+			inFile:    "./testdata",
+			outFile:   "./out.txt",
+			expectErr: ErrUnsupportedFile,
+		},
 	}
 
 	for _, tc := range testcases {
