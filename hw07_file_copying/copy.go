@@ -2,7 +2,9 @@ package main
 
 import (
 	"errors"
+	"github.com/cheggaaa/pb"
 	"io"
+	"math"
 	"os"
 )
 
@@ -36,14 +38,15 @@ func Copy(fromPath, toPath string, offset, limit int64) error {
 	chunkSize := int64(chunkSizeDefault)
 
 	//handling limit
-	if limit > 0 && limit-offset < chunkSize {
-		chunkSize = limit - offset
+	if limit > 0 && limit < chunkSize {
+		chunkSize = limit
 	}
-	if limit > 0 && limit < sz {
-		sz = limit
+	if limit > 0 && limit+offset < sz {
+		sz = limit + offset
 	}
 	var written int64
-
+	count := int(math.Ceil(float64(sz) / float64(chunkSize)))
+	bar := pb.StartNew(count)
 	for {
 		if sz-currentOffset < chunkSize {
 			chunkSize = sz - currentOffset
@@ -57,6 +60,7 @@ func Copy(fromPath, toPath string, offset, limit int64) error {
 			return errW
 		}
 		written = written + wr
+		bar.Increment()
 		if written >= sz-currentOffset {
 			break
 		}
