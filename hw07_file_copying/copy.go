@@ -2,10 +2,11 @@ package main
 
 import (
 	"errors"
-	"github.com/cheggaaa/pb"
 	"io"
 	"math"
 	"os"
+
+	"github.com/cheggaaa/pb"
 )
 
 const chunkSizeDefault = 4096
@@ -37,7 +38,7 @@ func Copy(fromPath, toPath string, offset, limit int64) error {
 	currentOffset := offset
 	chunkSize := int64(chunkSizeDefault)
 
-	//handling limit
+	// handling limit
 	if limit > 0 && limit < chunkSize {
 		chunkSize = limit
 	}
@@ -59,7 +60,7 @@ func Copy(fromPath, toPath string, offset, limit int64) error {
 		if errW != nil {
 			return errW
 		}
-		written = written + wr
+		written += wr
 		bar.Increment()
 		if written >= sz-currentOffset {
 			break
