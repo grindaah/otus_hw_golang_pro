@@ -23,7 +23,7 @@ func Copy(fromPath, toPath string, offset, limit int64) error {
 	}
 	defer f.Close()
 	var sz int64
-	sz, err = validateFile(f)
+	sz, err = validateFile(f, offset)
 	if err != nil {
 		return err
 	}
@@ -71,7 +71,7 @@ func Copy(fromPath, toPath string, offset, limit int64) error {
 	return nil
 }
 
-func validateFile(f *os.File) (int64, error) {
+func validateFile(f *os.File, offset int64) (int64, error) {
 	stat, err := f.Stat()
 	if err != nil {
 		return 0, err
