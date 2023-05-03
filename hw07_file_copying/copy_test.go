@@ -117,7 +117,7 @@ func TestCopy(t *testing.T) {
 		{
 			name:    "large file 1",
 			inFile:  tmpFile.Name(),
-			outFile: "./out1.txt",
+			outFile: "./testdata/outlarge.txt",
 			expectRes: Result{
 				sz:     fileSz,
 				path:   tmpFile.Name(),
