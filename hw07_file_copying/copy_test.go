@@ -3,15 +3,18 @@ package main
 import (
 	"crypto/rand"
 	"errors"
-	"github.com/google/go-cmp/cmp"
 	rand2 "math/rand"
 	"os"
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 // 20 Mb
-const fileSz = 1024 * 1024 * 20
-const defaultChunkCompare = 1024
+const (
+	fileSz              = 1024 * 1024 * 20
+	defaultChunkCompare = 1024
+)
 
 type Result struct {
 	sz     int64

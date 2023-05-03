@@ -32,7 +32,7 @@ func Copy(fromPath, toPath string, offset, limit int64) error {
 	if errCreate != nil {
 		return errCreate
 	}
-	toFile.Chmod(0644 | os.ModeAppend)
+	toFile.Chmod(0o644 | os.ModeAppend)
 	defer toFile.Close()
 
 	currentOffset := offset
