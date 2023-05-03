@@ -10,7 +10,6 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-// 20 Mb
 const (
 	fileSz              = 1024 * 1024 * 20
 	defaultChunkCompare = 1024
@@ -133,26 +132,26 @@ func TestCopy(t *testing.T) {
 			if !errors.Is(err, tc.expectErr) {
 				t.Fail()
 			}
-		} else {
-			if err != nil {
-				t.Error("err must be nil\n")
+		}
+		if err != nil {
+			t.Error("err must be nil\n")
+		}
+		if len(tc.expectRes.path) > 0 {
+			f, errOpen := os.Open(tc.expectRes.path)
+			if errOpen != nil {
+				t.Fail()
 			}
-			if len(tc.expectRes.path) > 0 {
-				f, errOpen := os.Open(tc.expectRes.path)
-				if errOpen != nil {
-					t.Fail()
-				}
-				defer f.Close()
-				fStat, _ := f.Stat()
-				if fStat.Size() != tc.expectRes.sz {
-					t.Error("size not matching\n")
-					t.Fail()
-				}
-				if !compareChunks(f, tc.expectRes.chunks, defaultChunkCompare) {
-					t.Error("chunk not matched\n")
-					t.Fail()
-				}
+			defer f.Close()
+			fStat, _ := f.Stat()
+			if fStat.Size() != tc.expectRes.sz {
+				t.Error("size not matching\n")
+				t.Fail()
+			}
+			if !compareChunks(f, tc.expectRes.chunks, defaultChunkCompare) {
+				t.Error("chunk not matched\n")
+				t.Fail()
 			}
 		}
+		
 	}
 }
