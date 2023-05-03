@@ -132,6 +132,7 @@ func TestCopy(t *testing.T) {
 			if !errors.Is(err, tc.expectErr) {
 				t.Fail()
 			}
+			continue
 		}
 		if err != nil {
 			t.Error("err must be nil\n")
