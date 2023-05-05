@@ -1,4 +1,4 @@
-module github.com/fixme_my_friend/hw07_file_copying
+module github.com/grindaah/file_copying
 
 go 1.16
 
