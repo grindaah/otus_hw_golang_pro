@@ -115,6 +115,12 @@ func TestCopy(t *testing.T) {
 			expectErr: ErrUnsupportedFile,
 		},
 		{
+			name:      "same file",
+			inFile:    "./testdata.txt",
+			outFile:   "./testdata.txt",
+			expectErr: ErrSameFile,
+		},
+		{
 			name:    "large file 1",
 			inFile:  tmpFile.Name(),
 			outFile: "./testdata/outlarge.txt",

@@ -14,9 +14,13 @@ const chunkSizeDefault = 4096
 var (
 	ErrUnsupportedFile       = errors.New("unsupported file")
 	ErrOffsetExceedsFileSize = errors.New("offset exceeds file size")
+	ErrSameFile              = errors.New("you cannot overwrite the file (use different from and to params")
 )
 
 func Copy(fromPath, toPath string, offset, limit int64) error {
+	if fromPath == toPath {
+		return ErrSameFile
+	}
 	f, err := os.Open(fromPath)
 	if err != nil {
 		return err
